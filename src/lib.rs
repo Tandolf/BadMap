@@ -6,20 +6,31 @@ use std::hash::{
 use std::mem;
 
 const INITIAL_N_BUCKETS: usize = 1;
-pub struct HashMap<K, V> {
+pub struct BadMap<K, V> {
     buckets: Vec<Vec<(K, V)>>,
     items: usize,
 }
 
-impl <K, V> HashMap<K, V> 
+impl <K, V> BadMap<K, V> 
 where
     K: Hash + Eq
 {
     fn new() -> Self {
-        HashMap {
+        BadMap {
             buckets: Vec::new(),
             items: 0,
         }
+    }
+
+    fn bucket(&self, key: &K) -> usize {
+        let mut hasher = DefaultHasher::new();
+
+        // Add the key to the hasher
+        key.hash(&mut hasher);
+
+        // Fetch the finished hash, then locate what bucket has room
+        let value = (hasher.finish() % self.buckets.len() as u64) as usize;
+        value
     }
 
     fn insert(&mut self, key: K, value: V) -> Option<V> {
@@ -29,14 +40,7 @@ where
             self.resize();
         }
 
-        // Create a default hasher
-        let mut hasher = DefaultHasher::new();
-
-        // Add the key to the hasher
-        key.hash(&mut hasher);
-
-        // Fetch the finished hash, then locate what bucket has room
-        let bucket= (hasher.finish() % self.buckets.len() as u64) as usize;
+        let bucket = self.bucket(&key);
 
         // Fetch that bucket
         let bucket = &mut self.buckets[bucket];
@@ -52,6 +56,14 @@ where
         // If no key duplicate, just simply push they new value and return none.
         bucket.push((key, value));
         None
+    }
+
+    pub fn get(&self, key: &K) -> Option<&V> {
+        let bucket = self.bucket(&key);
+        self.buckets[bucket]
+            .iter()
+            .find(|&(ref k, _)| k == key)
+            .map(|&(_, ref v)| v)
     }
 
     fn resize(&mut self) {
@@ -87,7 +99,8 @@ mod tests {
 
     #[test]
     fn test_insert() {
-        let mut map = HashMap::new();
+        let mut map = BadMap::new();
         map.insert("foo", "42");
+        assert_eq!(map.get(&"foo"), Some(&"42"));
     }
 }
